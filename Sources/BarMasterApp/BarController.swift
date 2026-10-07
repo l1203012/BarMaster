@@ -54,7 +54,7 @@ final class BarController: NSObject {
             bar.onOpenMention = { [weak self] in self?.slack.openLatestMention() }
         }
         slack.onChange = { [weak self] in self?.slackChanged() }
-        slack.connect()
+        slack.start()
         // Asks once; tab tracking, dialogs and key presses all need it.
         KeyPress.ensureTrusted()
         watcher.start { [weak self] app in
@@ -66,6 +66,12 @@ final class BarController: NSObject {
 
     func uninstall() {
         disable()
+    }
+
+    /// Opens Slack.json (your favourite channels) in the user's editor.
+    func editSlackChannels() {
+        guard let bar = bars[.slack] as? SlackBar else { return }
+        NSWorkspace.shared.open(bar.favourites.ensureFile())
     }
 
     /// Opens Chrome.json (created with examples the first time) in the user's editor.
@@ -104,7 +110,7 @@ final class BarController: NSObject {
     }
 
     private func slackChanged() {
-        let title = slack.mentions.last.map { "\($0.sender): \($0.text)" }
+        let title = slack.mentions.last?.summary
         for bar in allBars { bar.mentionTitle = title }
         (bars[.slack] as? SlackBar)?.slackChanged()
     }
@@ -116,6 +122,8 @@ final class BarController: NSObject {
     private func frontmostChanged(_ running: NSRunningApplication?) {
         // Our own menu opening activates BarMaster; that shouldn't change the bar.
         if running?.processIdentifier == ProcessInfo.processInfo.processIdentifier { return }
+        slack.start()  // no-op unless Notification Center restarted
+        slack.checkBadge()
         currentBar?.appElement = nil
         frontmost = running?.bundleIdentifier.flatMap(SupportedApp.init(rawValue:))
         handedBack = false

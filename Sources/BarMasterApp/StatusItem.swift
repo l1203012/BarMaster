@@ -7,7 +7,7 @@ final class StatusItem: NSObject, NSMenuDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let touchBar: BarController
     private let enabledItem = NSMenuItem(title: "Enabled", action: #selector(toggleEnabled), keyEquivalent: "")
-    private let slackItem = NSMenuItem(title: "Connect Slack…", action: #selector(slackAction), keyEquivalent: "")
+    private let slackItem = NSMenuItem(title: "Edit Slack Channels…", action: #selector(editSlackChannels), keyEquivalent: "")
     private let loginItem = NSMenuItem(title: "Open at Login", action: #selector(toggleOpenAtLogin), keyEquivalent: "")
 
     init(touchBar: BarController) {
@@ -38,12 +38,6 @@ final class StatusItem: NSObject, NSMenuDelegate {
         enabledItem.state = touchBar.isEnabled ? .on : .off
         enabledItem.isEnabled = SystemTouchBar.isAvailable
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        switch touchBar.slack.status {
-        case .notConfigured: slackItem.title = "Connect Slack…"
-        case .connecting: slackItem.title = "Disconnect Slack (connecting…)"
-        case .connected: slackItem.title = "Disconnect Slack"
-        case .failed(let message): slackItem.title = "Disconnect Slack (\(message))"
-        }
     }
 
     @objc private func toggleOpenAtLogin() {
@@ -58,12 +52,8 @@ final class StatusItem: NSObject, NSMenuDelegate {
         }
     }
 
-    @objc private func slackAction() {
-        if touchBar.slack.status == .notConfigured {
-            SlackSetup.run(touchBar.slack)
-        } else {
-            SlackSetup.disconnect(touchBar.slack)
-        }
+    @objc private func editSlackChannels() {
+        touchBar.editSlackChannels()
     }
 
     @objc private func editChromeButtons() {

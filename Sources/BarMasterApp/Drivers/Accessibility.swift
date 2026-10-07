@@ -48,13 +48,13 @@ final class AppEvents {
     private var observer: AXObserver?
     private let onEvent: (String) -> Void
 
-    private static let appNotifications = [
+    static let appNotifications = [
         kAXFocusedWindowChangedNotification, kAXMainWindowChangedNotification, kAXTitleChangedNotification,
         kAXWindowCreatedNotification, kAXSheetCreatedNotification,
     ]
 
     /// Nil when BarMaster lacks the Accessibility permission.
-    init?(pid: pid_t, onEvent: @escaping (String) -> Void) {
+    init?(pid: pid_t, notifications: [String] = AppEvents.appNotifications, onEvent: @escaping (String) -> Void) {
         guard AXIsProcessTrusted() else { return nil }
         app = AXUIElementCreateApplication(pid)
         self.onEvent = onEvent
@@ -65,7 +65,7 @@ final class AppEvents {
         }
         guard AXObserverCreate(pid, callback, &observer) == .success, let observer else { return nil }
         self.observer = observer
-        for name in Self.appNotifications {
+        for name in notifications {
             AXObserverAddNotification(observer, app, name as CFString, refcon)
         }
         CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)

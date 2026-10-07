@@ -204,11 +204,13 @@ come later if needed.
    @ Mention (⌘⇧M), unread ↑↓, All unreads, Threads, Jump.
 7. **Settings + onboarding window** (green), launch at login with
    `SMAppService.mainApp`.
-8. 🔨 **Slack v2 (changed):** a Socket Mode app with user events pushes your
-   messages live. Mentions and DMs appear on every bar and open via
-   `chat.getPermalink`, handed to the Slack app. The channel switcher is
-   ordered by `search.messages from:me`. Tokens are kept in the Keychain and set
-   via **Connect Slack…**, which copies the app manifest.
+8. 🔨 **Slack v2 (client-only):** no Slack app or tokens, to keep workspace
+   admins out of it. Mentions come from Slack's own notification banners,
+   watched in Notification Center over Accessibility. Each banner's
+   `AXStackingIdentifier` is the sending app's bundle ID. Tapping presses the
+   banner (exact message) while it is up, otherwise ⌘K + the conversation name.
+   Slack's Dock badge clears them. The switcher is favourites from `Slack.json`
+   plus recently mentioned conversations.
 9. **Polish:** stable signing, DMG, README, resource check
    (`footprint`, Instruments idle trace).
 

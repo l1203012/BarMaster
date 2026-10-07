@@ -23,6 +23,20 @@ enum KeyPress {
         }
     }
 
+    /// Types `text` into the frontmost app, character by character.
+    static func type(_ text: String) {
+        guard ensureTrusted() else { return }
+        let source = CGEventSource(stateID: .hidSystemState)
+        for character in text {
+            let units = Array(String(character).utf16)
+            for down in [true, false] {
+                let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: down)
+                event?.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+                event?.post(tap: .cghidEventTap)
+            }
+        }
+    }
+
     /// True when BarMaster may post events; otherwise shows the system prompt once.
     @discardableResult
     static func ensureTrusted() -> Bool {

@@ -53,14 +53,18 @@ Touch Bar right away.
 
 ## Slack
 
-Menu bar bottle → **Connect Slack…** walks you through creating a small Slack
-app from a manifest (it copies the manifest for you). Then paste its two
-tokens. They're stored in the Keychain. With them:
+Client-only: no Slack app, no tokens, nothing installed in the workspace.
 
-- The Slack bar gets a **channel switcher**: the channels you've written in
-  lately first, then the rest.
-- **@ mentions** (and DMs) show up live on every BarMaster bar. Tapping one
-  opens that exact message in Slack. Slack pushes messages over a Socket Mode
-  WebSocket, so nothing polls.
+- **Mentions:** Slack already shows a macOS notification for mentions and DMs.
+  BarMaster watches Notification Center for Slack's banners (over
+  Accessibility, event-driven) and shows the newest as **@ Name: message…** on
+  every bar. Tapping it while the banner is still up opens the exact message.
+  After that, it jumps to the conversation through Slack's ⌘K switcher.
+  Mentions clear when Slack's Dock badge does.
+- **Channel switcher:** your favourites from **Edit Slack Channels…**
+  (`Slack.json`, e.g. `{ "channels": ["#general", "Sam Example"] }`), then the
+  conversations you were recently mentioned in. Tapping one types it into ⌘K.
+- Everything else uses Slack's own shortcuts.
 
-Without tokens, Slack's buttons still work through its keyboard shortcuts.
+Slack's notifications must be on (mentions & DMs is Slack's default) for
+mentions to appear.
