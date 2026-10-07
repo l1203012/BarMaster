@@ -217,9 +217,11 @@ come later if needed.
 ## 7b. Added along the way
 
 - **Dialogs get through.** An Accessibility observer on the frontmost app
-  notices sheets and dialogs (e.g. Ghostty's "Close tab?"). BarMaster steps
-  aside so the dialog's own Touch Bar buttons can be tapped, then comes back
-  when the dialog closes.
+  notices sheets and dialogs. BarMaster steps aside so the dialog's own Touch
+  Bar buttons can be tapped, then comes back when the dialog closes. Ghostty's
+  "Close tab?" is a sheet that takes focus itself (focused window has role
+  `AXSheet`). Chrome's dialogs and permission prompts are separate focused
+  windows with subrole `AXUnknown` that aren't the main window.
 - **Live tab strip.** Tab switches made outside BarMaster update the strip.
   Chrome's window title follows the active tab; each Ghostty tab is its own
   window, so a focus change marks a Ghostty switch. Both are event-driven.
