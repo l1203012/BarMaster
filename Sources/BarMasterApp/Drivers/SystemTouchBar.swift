@@ -12,6 +12,7 @@ enum SystemTouchBar {
     private typealias SetPresence = @convention(c) (CFString, Bool) -> Void
     private typealias ShowsCloseBox = @convention(c) (Bool) -> Void
     private typealias Present = @convention(c) (AnyClass, Selector, NSTouchBar, NSString) -> Void
+    private typealias PresentPlaced = @convention(c) (AnyClass, Selector, NSTouchBar, Int64, NSString) -> Void
     private typealias TakeBar = @convention(c) (AnyClass, Selector, NSTouchBar) -> Void
     private typealias TakeItem = @convention(c) (AnyClass, Selector, NSTouchBarItem) -> Void
 
@@ -34,14 +35,20 @@ enum SystemTouchBar {
         }
     }
 
-    /// Shows `bar` over whatever app is frontmost, attached to the Control Strip item.
+    /// Shows `bar` over whatever app is frontmost, full width. Full width
+    /// (placement 1) is the only way to drop the system × close box; it also
+    /// covers the Control Strip, so our bars bring their own volume/brightness
+    /// keys and a button to hand the Touch Bar back.
     static func present(_ bar: NSTouchBar, trayItem: NSTouchBarItem.Identifier) {
         if let showsCloseBox = function("DFRSystemModalShowsCloseBoxWhenFrontMost", as: ShowsCloseBox.self) {
             showsCloseBox(false)
         }
-        guard let (sel, imp) = classMethod(NSTouchBar.self, "presentSystemModalTouchBar:systemTrayItemIdentifier:")
-        else { return }
-        unsafeBitCast(imp, to: Present.self)(NSTouchBar.self, sel, bar, trayItem.rawValue as NSString)
+        let id = trayItem.rawValue as NSString
+        if let (sel, imp) = classMethod(NSTouchBar.self, "presentSystemModalTouchBar:placement:systemTrayItemIdentifier:") {
+            unsafeBitCast(imp, to: PresentPlaced.self)(NSTouchBar.self, sel, bar, 1, id)
+        } else if let (sel, imp) = classMethod(NSTouchBar.self, "presentSystemModalTouchBar:systemTrayItemIdentifier:") {
+            unsafeBitCast(imp, to: Present.self)(NSTouchBar.self, sel, bar, id)
+        }
     }
 
     /// Collapses `bar` back into its Control Strip button; the frontmost app's own bar returns.

@@ -124,7 +124,7 @@ the target with `postToPid(_:)` so focus is never stolen. This needs the
 | Apple Events run on one background serial queue with a 1 s timeout. Scripts are compiled once with `NSAppleScript` and cached, or sent as raw `NSAppleEventDescriptor` | Main thread never blocks; no recompiling each tap |
 | Touch Bar items are built once per app and reused. Only the scrubber's data source changes | No view churn |
 | No networking except the optional on-tap Slack call | — |
-| **Targets:** idle CPU 0.0%, RSS < 25 MB, binary < 2 MB | Check with Activity Monitor and `footprint BarMaster` |
+| **Targets:** idle CPU 0.0%, RSS < 35 MB (measured 31 MB with all bars), binary < 2 MB | Check with Activity Monitor and `footprint BarMaster` |
 
 ---
 
@@ -197,10 +197,10 @@ come later if needed.
 3. ✅ **App switching:** activation watcher auto-presents and dismisses per
    bundle ID (`com.google.Chrome`, `com.tinyspeck.slackmacgap`,
    `com.mitchellh.ghostty`).
-4. **Chrome bar:** Apple Events driver, tab ◀ ▶, close, new, back/forward,
+4. 🔨 **Chrome bar:** Apple Events driver, tab ◀ ▶, close, new, back/forward,
    tab scrubber.
-5. **Ghostty bar:** same through the Ghostty dictionary, plus split buttons.
-6. **Slack bar (v1):** keystroke driver plus Accessibility onboarding;
+5. 🔨 **Ghostty bar:** same through the Ghostty dictionary, plus split buttons.
+6. 🔨 **Slack bar (v1):** keystroke driver plus Accessibility onboarding;
    @ Mention (⌘⇧M), unread ↑↓, All unreads, Threads, Jump.
 7. **Settings + onboarding window** (green), launch at login with
    `SMAppService.mainApp`.
@@ -219,8 +219,9 @@ come later if needed.
   call it in a loop.
 - **The system-modal bar hides the app's own bar.** That is intentional. The
   Control Strip toggle is the escape hatch.
-- **The system × close box shows** at the left of our bar even with
-  `DFRSystemModalShowsCloseBoxWhenFrontMost(false)` (seen in milestone 2). It
-  minimizes the bar, so BarMaster reads `NSTouchBar.isVisible` rather than
-  tracking its own state. The full-width `placement:` variant could remove it,
-  but it also hides the Control Strip, so we keep it.
+- **The system × close box** shows whenever the bar shares the Touch Bar with
+  the Control Strip, even with `DFRSystemModalShowsCloseBoxWhenFrontMost(false)`.
+  BarMaster now presents full width (`placement: 1`, as MTMR does) to drop it.
+  Every bar therefore carries its own brightness, volume and mute keys (posted
+  as media keys, so macOS shows its usual HUD) and a bottle that hands the
+  Touch Bar back.

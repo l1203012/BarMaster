@@ -1,7 +1,7 @@
 import AppKit
 
 private extension NSTouchBarItem.Identifier {
-    static let tray = Self("io.github.l1203012.barmaster.tray")
+    static let tray = barMaster("tray")
 }
 
 /// Owns the Control Strip bottle and decides which bar is on the Touch Bar.
@@ -9,8 +9,8 @@ private extension NSTouchBarItem.Identifier {
 /// gets its own Touch Bar back. Nothing here runs on a timer.
 final class BarController: NSObject {
     private let watcher = FrontmostAppWatcher()
-    private let home = AppBar(app: nil)
-    private lazy var bars = Dictionary(uniqueKeysWithValues: SupportedApp.allCases.map { ($0, AppBar(app: $0)) })
+    private let home = HomeBar()
+    private let bars: [SupportedApp: AppBar] = [.chrome: ChromeBar(), .slack: SlackBar(), .ghostty: GhosttyBar()]
     private var frontmost: SupportedApp?
     /// The bar last handed to the system; it may since have been minimized.
     private var presented: AppBar?
@@ -21,13 +21,16 @@ final class BarController: NSObject {
         return item
     }()
 
-    /// Read from the bar itself: the system × close box can minimize it behind our back.
+    /// Read from the bar itself rather than tracked, so it can't drift.
     var isShown: Bool { presented?.touchBar.isVisible ?? false }
 
     func install() {
         guard SystemTouchBar.isAvailable else {
             NSLog("BarMaster: DFRFoundation unavailable; Touch Bar features disabled")
             return
+        }
+        for bar in [home] + Array(bars.values) {
+            bar.onHandBack = { [weak self] in self?.hide() }
         }
         SystemTouchBar.addToControlStrip(trayItem)
         watcher.start { [weak self] app in self?.frontmostChanged(app) }
@@ -64,6 +67,7 @@ final class BarController: NSObject {
 
     private func present(_ bar: AppBar) {
         if let presented, presented !== bar { SystemTouchBar.dismiss(presented.touchBar) }
+        bar.refresh()
         SystemTouchBar.present(bar.touchBar, trayItem: .tray)
         presented = bar
     }
