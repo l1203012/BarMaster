@@ -13,6 +13,7 @@ final class TabScrubberItem: NSCustomTouchBarItem, NSScrubberDataSource, NSScrub
         scrubber.register(NSScrubberTextItemView.self, forItemIdentifier: Self.itemID)
         scrubber.mode = .free
         scrubber.selectionBackgroundStyle = .roundedBackground
+        scrubber.selectionOverlayStyle = .outlineOverlay
         let layout = NSScrubberFlowLayout()
         layout.itemSpacing = 4
         layout.itemSize = NSSize(width: 110, height: 30)
@@ -32,6 +33,8 @@ final class TabScrubberItem: NSCustomTouchBarItem, NSScrubberDataSource, NSScrub
         self.titles = titles
         scrubber.reloadData()
         guard titles.indices.contains(selected) else { return }
+        // Selecting before the new items are laid out is silently dropped.
+        scrubber.layoutSubtreeIfNeeded()
         scrubber.selectedIndex = selected
         scrubber.scrollItem(at: selected, to: .center)
     }
