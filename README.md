@@ -37,6 +37,10 @@ Touch Bar right away.
 
 - A domain also covers its subdomains (`github.com` → `gist.github.com`), and
   `www.` is ignored. `"*"` buttons show on every site.
+- A key can add a path pattern where `*` is one segment. `github.com/*/*`
+  matches repo pages and beats plain `github.com`, because the most specific
+  key wins. In `url`, `{1}`, `{2}`… are the page's path segments, so
+  `https://github.com/{1}/{2}/issues` opens the current repo's issues.
 - Each button has a `title`, an SF Symbol `symbol`, or both, plus one action:
   - `js`: runs in the page. Needs Chrome → View → Developer →
     **Allow JavaScript from Apple Events**.
@@ -46,3 +50,17 @@ Touch Bar right away.
     `$BARMASTER_HOST` and `$BARMASTER_TITLE`.
 - If the file has a mistake, a **⚠ Chrome.json** button appears instead. Tap it
   to open the file.
+
+## Slack
+
+Menu bar bottle → **Connect Slack…** walks you through creating a small Slack
+app from a manifest (it copies the manifest for you). Then paste its two
+tokens. They're stored in the Keychain. With them:
+
+- The Slack bar gets a **channel switcher**: the channels you've written in
+  lately first, then the rest.
+- **@ mentions** (and DMs) show up live on every BarMaster bar. Tapping one
+  opens that exact message in Slack. Slack pushes messages over a Socket Mode
+  WebSocket, so nothing polls.
+
+Without tokens, Slack's buttons still work through its keyboard shortcuts.

@@ -73,9 +73,18 @@ final class GhosttyBar: AppBar {
         case Self.newTab: return button(identifier, symbol: "plus", label: "New tab", action: #selector(newTab))
         case Self.splitRight: return button(identifier, symbol: "rectangle.split.2x1", label: "Split right", action: #selector(splitRight))
         case Self.splitDown: return button(identifier, symbol: "rectangle.split.1x2", label: "Split down", action: #selector(splitDown))
-        case Self.nextSplit: return button(identifier, symbol: "arrow.right.square", label: "Next split", action: #selector(nextSplit))
-        case Self.zoomSplit: return button(identifier, symbol: "arrow.up.left.and.arrow.down.right", label: "Zoom split", action: #selector(zoomSplit))
-        case Self.clear: return button(identifier, symbol: "eraser", label: "Clear screen", action: #selector(clear))
+        case Self.nextSplit:
+            let item = button(identifier, symbol: "arrow.right.square", label: "Next split", action: #selector(nextSplit))
+            item.visibilityPriority = .low  // first to go when a Slack mention needs the room
+            return item
+        case Self.zoomSplit:
+            let item = button(identifier, symbol: "arrow.up.left.and.arrow.down.right", label: "Zoom split", action: #selector(zoomSplit))
+            item.visibilityPriority = .low  // first to go when a Slack mention needs the room
+            return item
+        case Self.clear:
+            let item = button(identifier, symbol: "eraser", label: "Clear screen", action: #selector(clear))
+            item.visibilityPriority = .low  // first to go when a Slack mention needs the room
+            return item
         default: return nil
         }
     }

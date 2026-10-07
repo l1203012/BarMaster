@@ -9,10 +9,12 @@ private extension NSTouchBarItem.Identifier {
 /// gets its own Touch Bar back. While that app shows a sheet or dialog, BarMaster
 /// steps aside so the dialog's own Touch Bar buttons are reachable, and comes back
 /// when it closes. Everything is driven by notifications; nothing runs on a timer.
+@MainActor
 final class BarController: NSObject {
     private let watcher = FrontmostAppWatcher()
     private let home = HomeBar()
-    private let bars: [SupportedApp: AppBar] = [.chrome: ChromeBar(), .slack: SlackBar(), .ghostty: GhosttyBar()]
+    let slack = Slack()
+    private lazy var bars: [SupportedApp: AppBar] = [.chrome: ChromeBar(), .slack: SlackBar(slack: slack), .ghostty: GhosttyBar()]
     private var frontmost: SupportedApp?
     private var events: AppEvents?
     /// The bar last handed to the system; it may since have been minimized.
@@ -44,12 +46,15 @@ final class BarController: NSObject {
             NSLog("BarMaster: DFRFoundation unavailable; Touch Bar features disabled")
             return
         }
-        for bar in [home] + Array(bars.values) {
+        for bar in allBars {
             bar.onHandBack = { [weak self] in
                 self?.handedBack = true
                 self?.hide()
             }
+            bar.onOpenMention = { [weak self] in self?.slack.openLatestMention() }
         }
+        slack.onChange = { [weak self] in self?.slackChanged() }
+        slack.connect()
         // Asks once; tab tracking, dialogs and key presses all need it.
         KeyPress.ensureTrusted()
         watcher.start { [weak self] app in
@@ -92,6 +97,16 @@ final class BarController: NSObject {
 
     @objc func hide() {
         if let presented { SystemTouchBar.minimize(presented.touchBar) }
+    }
+
+    private var allBars: [AppBar] {
+        [home] + Array(bars.values)
+    }
+
+    private func slackChanged() {
+        let title = slack.mentions.last.map { "\($0.sender): \($0.text)" }
+        for bar in allBars { bar.mentionTitle = title }
+        (bars[.slack] as? SlackBar)?.slackChanged()
     }
 
     private var currentBar: AppBar? {

@@ -9,7 +9,8 @@ final class ChromeButtons {
         var title: String?
         /// An SF Symbol name, e.g. "play.fill".
         var symbol: String?
-        /// Exactly one action:
+        /// Exactly one action. In `url`, {url} and {host} are the current page's,
+        /// and {1}, {2}… its path segments (on github.com/owner/repo: owner, repo).
         var js: String?
         var url: String?
         var keys: String?
@@ -37,22 +38,30 @@ final class ChromeButtons {
         folder.watch(Self.url.deletingLastPathComponent().path) { [weak self] in self?.reload() }
     }
 
-    /// Buttons for `host`: the entry for the host itself or its nearest parent
-    /// domain ("github.com" also covers "gist.github.com"), plus any "*" buttons.
-    func buttons(for host: String?) -> [Button] {
+    /// Buttons for a page: the most specific matching entry, plus any "*" buttons.
+    /// A key is a domain, optionally followed by a path pattern where "*" is
+    /// any one segment: "github.com/*/*" (a repo) beats "github.com". A domain
+    /// also covers its subdomains, and "www." is ignored.
+    func buttons(for url: URL?) -> [Button] {
         guard case .loaded(let domains) = state else { return [] }
-        var matched: [Button] = []
-        if var labels = host?.lowercased().split(separator: ".").map(String.init) {
-            if labels.first == "www" { labels.removeFirst() }
-            while labels.count >= 2 {
-                if let buttons = domains[labels.joined(separator: ".")] {
-                    matched = buttons
-                    break
-                }
-                labels.removeFirst()
-            }
+        var host = url?.host?.lowercased() ?? ""
+        if host.hasPrefix("www.") { host.removeFirst(4) }
+        let path = Self.pathSegments(of: url)
+        var best: (score: Int, buttons: [Button])?
+        for (key, buttons) in domains where key != "*" {
+            let parts = key.split(separator: "/").map(String.init)
+            guard let domain = parts.first, host == domain || host.hasSuffix("." + domain) else { continue }
+            let pattern = parts.dropFirst()
+            guard pattern.count <= path.count,
+                  zip(pattern, path).allSatisfy({ $0 == "*" || $0 == $1.lowercased() }) else { continue }
+            let score = pattern.count * 1_000 + domain.count
+            if score > best?.score ?? -1 { best = (score, buttons) }
         }
-        return matched + (domains["*"] ?? [])
+        return (best?.buttons ?? []) + (domains["*"] ?? [])
+    }
+
+    static func pathSegments(of url: URL?) -> [String] {
+        url?.pathComponents.filter { $0 != "/" } ?? []
     }
 
     /// Creates the file with examples if needed and returns its URL, for the menu's "Edit…".

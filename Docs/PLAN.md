@@ -204,7 +204,11 @@ come later if needed.
    @ Mention (⌘⇧M), unread ↑↓, All unreads, Threads, Jump.
 7. **Settings + onboarding window** (green), launch at login with
    `SMAppService.mainApp`.
-8. **Slack v2:** Keychain token and on-tap `search.messages` → permalink.
+8. 🔨 **Slack v2 (changed):** a Socket Mode app with user events pushes your
+   messages live. Mentions and DMs appear on every bar and open via
+   `chat.getPermalink`, handed to the Slack app. The channel switcher is
+   ordered by `search.messages from:me`. Tokens are kept in the Keychain and set
+   via **Connect Slack…**, which copies the app manifest.
 9. **Polish:** stable signing, DMG, README, resource check
    (`footprint`, Instruments idle trace).
 

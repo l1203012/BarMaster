@@ -7,16 +7,36 @@ extension NSTouchBarItem.Identifier {
 
     static let escape = barMaster("escape")
     static let handBack = barMaster("hand-back")
+    static let slackMention = barMaster("slack-mention")
 }
 
 /// One full-width Touch Bar layout: Esc, the app's own items, then a bottle
 /// that hands the Touch Bar back. Subclasses supply the middle part.
 /// Built once and reused; `refresh()` runs each time the bar is presented.
+@MainActor
 class AppBar: NSObject, NSTouchBarDelegate {
     /// Set by BarController: collapse the bar back into the Control Strip.
     var onHandBack: (() -> Void)?
     /// The app's accessibility element while it is frontmost (nil without the permission).
     var appElement: AXUIElement?
+    /// Set by BarController: open the newest Slack mention.
+    var onOpenMention: (() -> Void)?
+    /// The newest unopened Slack mention ("@ Sam: can you…"), shown on every bar.
+    var mentionTitle: String? {
+        didSet {
+            guard mentionTitle != oldValue else { return }
+            mentionButton.title = mentionTitle ?? ""
+            if (mentionTitle == nil) != (oldValue == nil) { reloadItems() }
+        }
+    }
+    private lazy var mentionButton: NSButton = {
+        let image = NSImage(systemSymbolName: "at.circle.fill", accessibilityDescription: "Slack mention") ?? NSImage()
+        let button = NSButton(title: "", image: image, target: self, action: #selector(openMention))
+        button.imagePosition = .imageLeading
+        button.lineBreakMode = .byTruncatingTail
+        button.widthAnchor.constraint(lessThanOrEqualToConstant: 220).isActive = true
+        return button
+    }()
 
     private(set) lazy var touchBar: NSTouchBar = {
         let bar = NSTouchBar()
@@ -26,7 +46,8 @@ class AppBar: NSObject, NSTouchBarDelegate {
     }()
 
     private var itemIdentifiers: [NSTouchBarItem.Identifier] {
-        [.escape, .fixedSpaceSmall] + appItems + [.flexibleSpace, .handBack]
+        [.escape, .fixedSpaceSmall] + appItems + [.flexibleSpace]
+            + (mentionTitle == nil ? [] : [.slackMention]) + [.handBack]
     }
 
     /// Call after `appItems` changes; the Touch Bar updates in place.
@@ -51,6 +72,12 @@ class AppBar: NSObject, NSTouchBarDelegate {
         case .escape:
             let item = button(identifier, title: "esc", action: #selector(escape))
             item.view.widthAnchor.constraint(equalToConstant: 56).isActive = true
+            return item
+        case .slackMention:
+            let item = NSCustomTouchBarItem(identifier: identifier)
+            item.view = mentionButton
+            item.visibilityPriority = .high
+            item.customizationLabel = "Latest Slack mention"
             return item
         case .handBack:
             let item = NSCustomTouchBarItem(identifier: identifier)
@@ -87,6 +114,7 @@ class AppBar: NSObject, NSTouchBarDelegate {
 
     @objc private func escape() { KeyPress.escape() }
     @objc private func handBack() { onHandBack?() }
+    @objc private func openMention() { onOpenMention?() }
 }
 
 /// Shown when the Control Strip bottle is tapped in an app BarMaster doesn't know.

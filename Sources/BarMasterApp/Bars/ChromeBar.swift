@@ -17,7 +17,7 @@ final class ChromeBar: AppBar {
 
     private static let configError = NSTouchBarItem.Identifier.barMaster("chrome.config-error")
 
-    private let tabStrip = TabScrubberItem(identifier: ChromeBar.tabs)
+    private let tabStrip = TabScrubberItem(identifier: ChromeBar.tabs, width: 200)
     private let throttle = Throttle(delay: 0.25)
     let siteButtons = ChromeButtons()
     private var activeURL: URL?
@@ -61,7 +61,10 @@ final class ChromeBar: AppBar {
         case Self.nextTab: return button(identifier, symbol: "chevron.right", label: "Next tab", action: #selector(nextTab))
         case Self.closeTab: return button(identifier, symbol: "xmark", label: "Close tab", action: #selector(closeTab))
         case Self.newTab: return button(identifier, symbol: "plus", label: "New tab", action: #selector(newTab))
-        case Self.reopenTab: return button(identifier, symbol: "arrow.uturn.backward", label: "Reopen closed tab", action: #selector(reopenTab))
+        case Self.reopenTab:
+            let item = button(identifier, symbol: "arrow.uturn.backward", label: "Reopen closed tab", action: #selector(reopenTab))
+            item.visibilityPriority = .low  // first to go when site buttons need the room
+            return item
         case Self.back: return button(identifier, symbol: "arrow.left", label: "Back", action: #selector(back))
         case Self.forward: return button(identifier, symbol: "arrow.right", label: "Forward", action: #selector(forward))
         case Self.reload: return button(identifier, symbol: "arrow.clockwise", label: "Reload", action: #selector(reload))
@@ -89,7 +92,7 @@ final class ChromeBar: AppBar {
 
     /// Swaps in the buttons for the active tab's website when they differ.
     private func updateSiteButtons() {
-        let buttons = siteButtons.buttons(for: activeURL?.host)
+        let buttons = siteButtons.buttons(for: activeURL)
         guard buttons != siteItems.map(\.button) || isShowingStaleError else { return }
         siteItems = buttons.enumerated().map { index, button in
             (.barMaster("chrome.site.\(index).\(button.hashValue)"), button)
@@ -126,8 +129,11 @@ final class ChromeBar: AppBar {
             run("execute active tab of front window javascript \(AppleScript.quoted(js))", cache: false, refreshing: false)
         } else if let url = site.url {
             let encoded = page.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
-            let target = url.replacingOccurrences(of: "{url}", with: encoded)
+            var target = url.replacingOccurrences(of: "{url}", with: encoded)
                 .replacingOccurrences(of: "{host}", with: activeURL?.host ?? "")
+            for (index, segment) in ChromeButtons.pathSegments(of: activeURL).enumerated() {
+                target = target.replacingOccurrences(of: "{\(index + 1)}", with: segment)
+            }
             run("set URL of active tab of front window to \(AppleScript.quoted(target))", cache: false, refreshing: false)
         } else if let keys = site.keys, let combo = KeyCombo(keys) {
             KeyPress.post(combo.key, flags: combo.flags)
