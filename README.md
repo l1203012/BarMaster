@@ -18,6 +18,21 @@ switcher, live Slack mentions, and the git branch and Claude Code usage of the
 terminal you're working in. Switch to any other app and its own Touch Bar comes
 back.
 
+<p align="center">
+  <img src="Docs/images/touchbar-ghostty.png" alt="Ghostty bar: tabs, splits, git branch and Claude context" /><br />
+  <sub><b>Ghostty</b>: tab strip, splits, git branch with commit count, Claude Code context</sub>
+</p>
+<p align="center">
+  <img src="Docs/images/touchbar-chrome.png" alt="Chrome bar on a GitHub repo" /><br />
+  <sub><b>Chrome</b> on a GitHub repo: tabs plus that repo's Code, Issues, PRs and Actions</sub>
+</p>
+<p align="center">
+  <img src="Docs/images/touchbar-slack.png" alt="Slack bar with channel switcher and a mention" /><br />
+  <sub><b>Slack</b>: channel switcher, shortcuts and a live mention</sub>
+</p>
+
+<p align="center"><sub>Illustrations drawn by <code>Scripts/make_screenshots.py</code> with made-up tabs and channels.</sub></p>
+
 ## Features
 
 ### Ghostty
@@ -180,6 +195,7 @@ Scripts/build.sh               # compile
 Scripts/build.sh run           # build .build/BarMaster.app, restart it
 Scripts/build.sh install       # optimised build into /Applications
 python3 Scripts/make_logo.py   # regenerate the icon (needs Pillow)
+python3 Scripts/make_screenshots.py   # redraw the README's Touch Bar images (needs Pillow)
 ```
 
 The build uses plain `swiftc`, so the Command Line Tools are enough.
