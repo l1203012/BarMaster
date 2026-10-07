@@ -2,28 +2,27 @@ import AppKit
 
 private extension NSTouchBarItem.Identifier {
     static let tray = Self("io.github.l1203012.barmaster.tray")
-    static let escape = Self("io.github.l1203012.barmaster.escape")
-    static let hello = Self("io.github.l1203012.barmaster.hello")
 }
 
-/// Owns the Control Strip bottle and BarMaster's system-modal bar.
-/// Milestone 2: the bar is Esc + a hello button; per-app layouts come next.
-/// Nothing here runs on a timer: work happens only on taps and menu actions.
-final class BarController: NSObject, NSTouchBarDelegate {
-    /// Read from the bar itself: the system × close box can minimize it behind our back.
-    var isShown: Bool { bar.isVisible }
+/// Owns the Control Strip bottle and decides which bar is on the Touch Bar.
+/// When a supported app comes to the front its bar is presented; any other app
+/// gets its own Touch Bar back. Nothing here runs on a timer.
+final class BarController: NSObject {
+    private let watcher = FrontmostAppWatcher()
+    private let home = AppBar(app: nil)
+    private lazy var bars = Dictionary(uniqueKeysWithValues: SupportedApp.allCases.map { ($0, AppBar(app: $0)) })
+    private var frontmost: SupportedApp?
+    /// The bar last handed to the system; it may since have been minimized.
+    private var presented: AppBar?
     private lazy var trayItem: NSCustomTouchBarItem = {
         let item = NSCustomTouchBarItem(identifier: .tray)
         // The tray button is only on screen while our bar is collapsed, so it always shows.
         item.view = NSButton(image: Theme.bottleImage(), target: self, action: #selector(show))
         return item
     }()
-    private lazy var bar: NSTouchBar = {
-        let bar = NSTouchBar()
-        bar.delegate = self
-        bar.defaultItemIdentifiers = [.escape, .fixedSpaceLarge, .hello]
-        return bar
-    }()
+
+    /// Read from the bar itself: the system × close box can minimize it behind our back.
+    var isShown: Bool { presented?.touchBar.isVisible ?? false }
 
     func install() {
         guard SystemTouchBar.isAvailable else {
@@ -31,10 +30,11 @@ final class BarController: NSObject, NSTouchBarDelegate {
             return
         }
         SystemTouchBar.addToControlStrip(trayItem)
+        watcher.start { [weak self] app in self?.frontmostChanged(app) }
     }
 
     func uninstall() {
-        SystemTouchBar.dismiss(bar)
+        if let presented { SystemTouchBar.dismiss(presented.touchBar) }
         SystemTouchBar.removeFromControlStrip(trayItem)
     }
 
@@ -42,35 +42,29 @@ final class BarController: NSObject, NSTouchBarDelegate {
         isShown ? hide() : show()
     }
 
+    /// Shows the bar for the frontmost app, or the home bar elsewhere.
     @objc func show() {
-        SystemTouchBar.present(bar, trayItem: .tray)
+        present(frontmost.flatMap { bars[$0] } ?? home)
     }
 
     @objc func hide() {
-        SystemTouchBar.minimize(bar)
+        if let presented { SystemTouchBar.minimize(presented.touchBar) }
     }
 
-    func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
-        switch identifier {
-        case .escape:
-            // System-modal bars hide the virtual Esc key, and Touch Bar MacBooks have no real one.
-            return button(identifier, title: "esc", action: #selector(escape))
-        case .hello:
-            let item = button(identifier, title: "🥃 Hello from BarMaster", action: #selector(hide))
-            (item.view as? NSButton)?.bezelColor = Theme.touchBarGreen
-            return item
-        default:
-            return nil
+    private func frontmostChanged(_ running: NSRunningApplication?) {
+        // Our own menu opening activates BarMaster; that shouldn't change the bar.
+        if running?.processIdentifier == ProcessInfo.processInfo.processIdentifier { return }
+        frontmost = running?.bundleIdentifier.flatMap(SupportedApp.init(rawValue:))
+        if let app = frontmost, let bar = bars[app] {
+            present(bar)
+        } else {
+            hide()
         }
     }
 
-    @objc private func escape() {
-        KeyPress.escape()
-    }
-
-    private func button(_ identifier: NSTouchBarItem.Identifier, title: String, action: Selector) -> NSCustomTouchBarItem {
-        let item = NSCustomTouchBarItem(identifier: identifier)
-        item.view = NSButton(title: title, target: self, action: action)
-        return item
+    private func present(_ bar: AppBar) {
+        if let presented, presented !== bar { SystemTouchBar.dismiss(presented.touchBar) }
+        SystemTouchBar.present(bar.touchBar, trayItem: .tray)
+        presented = bar
     }
 }

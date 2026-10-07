@@ -194,7 +194,7 @@ come later if needed.
 2. ✅ **Private Touch Bar spike:** Control Strip bottle plus a system-modal bar
    with Esc + "Hello", shown over any app. *This is the riskiest step, so do it
    first.*
-3. **App switching:** activation watcher auto-presents and dismisses per
+3. ✅ **App switching:** activation watcher auto-presents and dismisses per
    bundle ID (`com.google.Chrome`, `com.tinyspeck.slackmacgap`,
    `com.mitchellh.ghostty`).
 4. **Chrome bar:** Apple Events driver, tab ◀ ▶, close, new, back/forward,
