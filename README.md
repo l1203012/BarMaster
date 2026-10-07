@@ -5,6 +5,17 @@
 <h1 align="center">BarMaster</h1>
 
 <p align="center">
+  <a href="https://github.com/l1203012/BarMaster/actions/workflows/ci.yml"><img src="https://github.com/l1203012/BarMaster/actions/workflows/ci.yml/badge.svg?branch=main" alt="macOS CI" /></a>
+  <a href="https://github.com/l1203012/BarMaster/releases"><img src="https://img.shields.io/github/v/release/l1203012/BarMaster?include_prereleases&sort=semver&label=release" alt="Latest release" /></a>
+  <a href="https://github.com/l1203012/BarMaster/releases"><img src="https://img.shields.io/github/downloads/l1203012/BarMaster/total" alt="Downloads" /></a>
+  <br />
+  <a href="#install"><img src="https://img.shields.io/badge/macOS-13%2B-1E8E4F?logo=apple&logoColor=white" alt="macOS 13+" /></a>
+  <a href="#development"><img src="https://img.shields.io/badge/Swift-5.8%2B-F05138?logo=swift&logoColor=white" alt="Swift 5.8+" /></a>
+  <a href="#install"><img src="https://img.shields.io/badge/Touch%20Bar-required-1E8E4F" alt="Touch Bar required" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-9FD3FF" alt="MIT license" /></a>
+</p>
+
+<p align="center">
   A Touch Bar that actually does something, for Chrome, Slack and Ghostty.<br />
   Native Swift, event-driven and close to zero CPU while idle.
 </p>
@@ -31,7 +42,7 @@ back.
   <sub><b>Slack</b>: channel switcher, shortcuts and a live mention</sub>
 </p>
 
-<p align="center"><sub>Illustrations drawn by <code>Scripts/make_screenshots.py</code> with made-up tabs and channels.</sub></p>
+<p align="center"><sub>Illustrations with made-up tabs and channels.</sub></p>
 
 ## Features
 
@@ -73,8 +84,21 @@ back.
 
 ## Install
 
-Requires a MacBook with a Touch Bar, macOS 13 or later, and the Xcode Command
-Line Tools (`xcode-select --install`). Xcode itself isn't needed.
+Requires a MacBook with a Touch Bar and macOS 13 or later.
+
+### Download
+
+1. Download `BarMaster-<version>.zip` from the
+   [latest release](https://github.com/l1203012/BarMaster/releases/latest),
+   unzip it, and move **BarMaster.app** to Applications.
+2. The app isn't notarized, so the first time, right-click it → **Open** →
+   **Open**. On macOS 15 and later, use System Settings → Privacy & Security →
+   **Open Anyway** instead.
+
+### Build from source
+
+Needs the Xcode Command Line Tools (`xcode-select --install`). Xcode itself
+isn't needed.
 
 ```sh
 git clone https://github.com/l1203012/BarMaster.git
@@ -194,8 +218,6 @@ The design notes and decisions are in [Docs/PLAN.md](Docs/PLAN.md).
 Scripts/build.sh               # compile
 Scripts/build.sh run           # build .build/BarMaster.app, restart it
 Scripts/build.sh install       # optimised build into /Applications
-python3 Scripts/make_logo.py   # regenerate the icon (needs Pillow)
-python3 Scripts/make_screenshots.py   # redraw the README's Touch Bar images (needs Pillow)
 ```
 
 The build uses plain `swiftc`, so the Command Line Tools are enough.

@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: Build (universal)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # build.sh numbers builds by commit count
+      - name: Compile
+        run: Scripts/build.sh
+      - name: Universal release bundle
+        run: CONFIG=release ARCHS="arm64 x86_64" SIGN_IDENTITY=- Scripts/build.sh app
+      - name: Check the bundle
+        run: |
+          lipo -info .build/BarMaster.app/Contents/MacOS/BarMaster | grep -q "x86_64 arm64"
+          plutil -lint .build/BarMaster.app/Contents/Info.plist
+          codesign --verify --deep --strict .build/BarMaster.app

@@ -1,0 +1,38 @@
+name: Release
+
+# Push a tag like v0.2.0 (or create the release on GitHub with a new tag):
+# this builds the universal app and attaches BarMaster-<version>.zip and its
+# SHA-256. If the release already exists (e.g. written by hand), only the
+# files are added; otherwise it's created with generated notes.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          plutil -replace CFBundleShortVersionString -string "$VERSION" Resources/Info.plist
+          CONFIG=release ARCHS="arm64 x86_64" SIGN_IDENTITY=- Scripts/build.sh app
+          ditto -c -k --keepParent .build/BarMaster.app "BarMaster-$VERSION.zip"
+          shasum -a 256 "BarMaster-$VERSION.zip" > "BarMaster-$VERSION.zip.sha256"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "BarMaster-$VERSION.zip" "BarMaster-$VERSION.zip.sha256" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "BarMaster-$VERSION.zip" "BarMaster-$VERSION.zip.sha256" \
+              --title "BarMaster $VERSION" --generate-notes
+          fi

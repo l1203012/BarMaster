@@ -154,7 +154,7 @@ the target with `postToPid(_:)` so focus is never stolen. This needs the
 - The settings / onboarding window has a green gradient header, the app icon,
   and simple AppKit controls. It stays deliberately minimal.
 - Icon: a whisky bottle on a green macOS-style squircle (being generated into
-  `Resources/App/`, script in `Scripts/make_logo.*`). The menu bar uses a
+  `Resources/App/`). The menu bar uses a
   template bottle glyph.
 
 ---
@@ -177,7 +177,7 @@ BarMaster/
 │       └── UI/StatusItem.swift, SettingsWindow.swift, Onboarding.swift
 ├── Tests/BarMasterCoreTests/
 ├── Resources/Info.plist, Resources/App/AppIcon.icns, MenuBarIcon*.png
-├── Scripts/build.sh (app / dmg), targets.sh, test.sh, make_logo.*
+├── Scripts/build.sh (app / run / install), targets.sh, make-dev-cert.sh
 └── Docs/PLAN.md
 ```
 
