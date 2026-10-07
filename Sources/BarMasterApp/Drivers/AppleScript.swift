@@ -22,12 +22,8 @@ enum AppleScript {
         }
     }
 
-    /// Reads the `{selected index} & titles` lists our tab scripts return.
-    static func tabList(_ result: NSAppleEventDescriptor?) -> (selected: Int, titles: [String])? {
-        guard let result, result.numberOfItems >= 1, let first = result.atIndex(1) else { return nil }
-        let titles = stride(from: 2, through: result.numberOfItems, by: 1).map {
-            result.atIndex($0)?.stringValue ?? ""
-        }
-        return (Int(first.int32Value) - 1, titles)
+    /// `text` as an AppleScript string literal.
+    static func quoted(_ text: String) -> String {
+        "\"" + text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
     }
 }

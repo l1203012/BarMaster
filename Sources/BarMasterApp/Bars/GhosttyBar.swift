@@ -23,6 +23,9 @@ final class GhosttyBar: AppBar {
                                                  action: #selector(reloadClaude))
     private lazy var gitButton = statusButton(symbol: "arrow.triangle.branch", label: "Git branch",
                                               action: #selector(reloadGit))
+    private var claudeTokens: Int?
+    /// The focused terminal is running Claude Code (judged by its title).
+    private var isClaudeTerminal = false
     private let tabThrottle = Throttle(delay: 0.15)
     private let titleThrottle = Throttle(delay: 0.5)
 
@@ -38,8 +41,9 @@ final class GhosttyBar: AppBar {
         }
         claudeSession.onChange = { [weak self] tokens in
             guard let self else { return }
-            self.claudeButton.isHidden = tokens == nil
+            self.claudeTokens = tokens
             if let tokens { self.claudeButton.title = Self.compact(tokens) }
+            self.updateClaudeVisibility()
         }
     }
 
@@ -87,8 +91,10 @@ final class GhosttyBar: AppBar {
             """) { [weak self] result in
             guard let self, let result, result.numberOfItems >= 2 else { return }
             let titles = stride(from: 3, through: result.numberOfItems, by: 1).map { result.atIndex($0)?.stringValue ?? "" }
-            self.tabStrip.update(titles: titles, selected: Int(result.atIndex(1)?.int32Value ?? 0) - 1)
-            self.track(directory: result.atIndex(2)?.stringValue)
+            let selected = Int(result.atIndex(1)?.int32Value ?? 0) - 1
+            self.tabStrip.update(titles: titles, selected: selected)
+            self.track(directory: result.atIndex(2)?.stringValue,
+                       title: titles.indices.contains(selected) ? titles[selected] : nil)
         }
     }
 
@@ -102,17 +108,33 @@ final class GhosttyBar: AppBar {
         case kAXTitleChangedNotification:
             titleThrottle.schedule { [weak self] in
                 guard let self, let app = self.appElement,
-                      let directory = AX.documentPath(ofFocusedWindowIn: app) else { return }
-                self.track(directory: directory)
+                      let window = AX.element(app, kAXFocusedWindowAttribute) else { return }
+                self.track(directory: AX.documentPath(ofFocusedWindowIn: app),
+                           title: AX.string(window, kAXTitleAttribute))
             }
         default:
             break
         }
     }
 
-    private func track(directory: String?) {
-        gitStatus.track(directory: directory)
-        claudeSession.track(directory: directory)
+    private func track(directory: String?, title: String?) {
+        if let directory {
+            gitStatus.track(directory: directory)
+            claudeSession.track(directory: directory)
+        }
+        isClaudeTerminal = title.map(Self.isClaudeTitle) ?? false
+        updateClaudeVisibility()
+    }
+
+    private func updateClaudeVisibility() {
+        claudeButton.isHidden = !(isClaudeTerminal && claudeTokens != nil)
+    }
+
+    /// Claude Code titles its terminal "✳ <topic>" when idle and animates a
+    /// spinner glyph in front while working; other programs don't.
+    private static func isClaudeTitle(_ title: String) -> Bool {
+        guard let first = title.unicodeScalars.first else { return false }
+        return "✳✢✶✻✽·◐◓◑◒".unicodeScalars.contains(first) || (0x2800...0x28FF).contains(first.value)
     }
 
     /// 178_342 → "178k", 1_204_000 → "1.2M".

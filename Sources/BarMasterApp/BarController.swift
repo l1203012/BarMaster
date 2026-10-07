@@ -63,6 +63,12 @@ final class BarController: NSObject {
         disable()
     }
 
+    /// Opens Chrome.json (created with examples the first time) in the user's editor.
+    func editChromeButtons() {
+        guard let chrome = bars[.chrome] as? ChromeBar else { return }
+        NSWorkspace.shared.open(chrome.siteButtons.ensureFile())
+    }
+
     private func enable() {
         SystemTouchBar.addToControlStrip(trayItem)
         frontmostChanged(NSWorkspace.shared.frontmostApplication)

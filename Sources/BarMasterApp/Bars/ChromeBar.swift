@@ -2,6 +2,8 @@ import AppKit
 import Carbon.HIToolbox
 
 /// Chrome through its AppleScript dictionary: exact, and no focus tricks.
+/// After the fixed controls come the buttons the user defined for the current
+/// website in Chrome.json (see ChromeButtons).
 final class ChromeBar: AppBar {
     private static let previousTab = NSTouchBarItem.Identifier.barMaster("chrome.previous-tab")
     private static let nextTab = NSTouchBarItem.Identifier.barMaster("chrome.next-tab")
@@ -13,25 +15,48 @@ final class ChromeBar: AppBar {
     private static let forward = NSTouchBarItem.Identifier.barMaster("chrome.forward")
     private static let reload = NSTouchBarItem.Identifier.barMaster("chrome.reload")
 
+    private static let configError = NSTouchBarItem.Identifier.barMaster("chrome.config-error")
+
     private let tabStrip = TabScrubberItem(identifier: ChromeBar.tabs)
     private let throttle = Throttle(delay: 0.25)
+    let siteButtons = ChromeButtons()
+    private var activeURL: URL?
+    private var activeTitle = ""
+    /// The current site's buttons, keyed by Touch Bar identifier. The identifier
+    /// includes the button's content, because NSTouchBar caches items by identifier.
+    private var siteItems: [(id: NSTouchBarItem.Identifier, button: ChromeButtons.Button)] = []
 
     override init() {
         super.init()
         tabStrip.onSelect = { [weak self] index in
             self?.run("set active tab index of front window to \(index + 1)", cache: false)
         }
+        siteButtons.onChange = { [weak self] in self?.updateSiteButtons() }
     }
 
     override var appItems: [NSTouchBarItem.Identifier] {
-        [Self.back, Self.forward, Self.reload, .fixedSpaceSmall,
-         Self.previousTab, Self.tabs, Self.nextTab, .fixedSpaceSmall,
-         Self.newTab, Self.closeTab, Self.reopenTab]
+        var items: [NSTouchBarItem.Identifier] = [
+            Self.back, Self.forward, Self.reload, .fixedSpaceSmall,
+            Self.previousTab, Self.tabs, Self.nextTab, .fixedSpaceSmall,
+            Self.newTab, Self.closeTab, Self.reopenTab,
+        ]
+        if case .invalid = siteButtons.state {
+            items += [.fixedSpaceSmall, Self.configError]
+        } else if !siteItems.isEmpty {
+            items += [.fixedSpaceSmall] + siteItems.map(\.id)
+        }
+        return items
     }
 
     override func makeAppItem(_ identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
+        if let site = siteItems.first(where: { $0.id == identifier }) {
+            return siteItem(identifier, site.button)
+        }
         switch identifier {
         case Self.tabs: return tabStrip
+        case Self.configError:
+            return button(identifier, symbol: "exclamationmark.triangle", label: "Chrome.json has an error",
+                          title: "Chrome.json", action: #selector(editButtons))
         case Self.previousTab: return button(identifier, symbol: "chevron.left", label: "Previous tab", action: #selector(previousTab))
         case Self.nextTab: return button(identifier, symbol: "chevron.right", label: "Next tab", action: #selector(nextTab))
         case Self.closeTab: return button(identifier, symbol: "xmark", label: "Close tab", action: #selector(closeTab))
@@ -48,12 +73,86 @@ final class ChromeBar: AppBar {
         AppleScript.run("""
             tell application "Google Chrome"
                 if (count of windows) is 0 then return {}
-                return {active tab index of front window} & (title of every tab of front window)
+                set w to front window
+                return {active tab index of w, URL of active tab of w} & (title of every tab of w)
             end tell
             """) { [weak self] result in
-            guard let (selected, titles) = AppleScript.tabList(result) else { return }
-            self?.tabStrip.update(titles: titles, selected: selected)
+            guard let self, let result, result.numberOfItems >= 2 else { return }
+            let titles = stride(from: 3, through: result.numberOfItems, by: 1).map { result.atIndex($0)?.stringValue ?? "" }
+            let selected = Int(result.atIndex(1)?.int32Value ?? 0) - 1
+            self.tabStrip.update(titles: titles, selected: selected)
+            self.activeURL = result.atIndex(2)?.stringValue.flatMap(URL.init(string:))
+            self.activeTitle = titles.indices.contains(selected) ? titles[selected] : ""
+            self.updateSiteButtons()
         }
+    }
+
+    /// Swaps in the buttons for the active tab's website when they differ.
+    private func updateSiteButtons() {
+        let buttons = siteButtons.buttons(for: activeURL?.host)
+        guard buttons != siteItems.map(\.button) || isShowingStaleError else { return }
+        siteItems = buttons.enumerated().map { index, button in
+            (.barMaster("chrome.site.\(index).\(button.hashValue)"), button)
+        }
+        reloadItems()
+    }
+
+    private var isShowingStaleError: Bool {
+        if case .invalid = siteButtons.state { return !touchBar.defaultItemIdentifiers.contains(Self.configError) }
+        return touchBar.defaultItemIdentifiers.contains(Self.configError)
+    }
+
+    private func siteItem(_ identifier: NSTouchBarItem.Identifier, _ site: ChromeButtons.Button) -> NSTouchBarItem {
+        let item = NSCustomTouchBarItem(identifier: identifier)
+        let image = site.symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: site.title) }
+        let button: NSButton
+        switch (site.title, image) {
+        case let (title?, image?): button = NSButton(title: title, image: image, target: self, action: #selector(runSiteButton))
+        case let (nil, image?): button = NSButton(image: image, target: self, action: #selector(runSiteButton))
+        default: button = NSButton(title: site.title ?? "?", target: self, action: #selector(runSiteButton))
+        }
+        button.imagePosition = site.title == nil ? .imageOnly : .imageLeading
+        button.identifier = NSUserInterfaceItemIdentifier(identifier.rawValue)
+        item.view = button
+        item.customizationLabel = site.title ?? site.symbol ?? "Site button"
+        return item
+    }
+
+    @objc private func runSiteButton(_ sender: NSButton) {
+        guard let site = siteItems.first(where: { $0.id.rawValue == sender.identifier?.rawValue })?.button else { return }
+        let page = activeURL?.absoluteString ?? ""
+        if let js = site.js {
+            // Needs Chrome → View → Developer → Allow JavaScript from Apple Events.
+            run("execute active tab of front window javascript \(AppleScript.quoted(js))", cache: false, refreshing: false)
+        } else if let url = site.url {
+            let encoded = page.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
+            let target = url.replacingOccurrences(of: "{url}", with: encoded)
+                .replacingOccurrences(of: "{host}", with: activeURL?.host ?? "")
+            run("set URL of active tab of front window to \(AppleScript.quoted(target))", cache: false, refreshing: false)
+        } else if let keys = site.keys, let combo = KeyCombo(keys) {
+            KeyPress.post(combo.key, flags: combo.flags)
+        } else if let shell = site.shell {
+            Self.runShell(shell, environment: [
+                "BARMASTER_URL": page, "BARMASTER_HOST": activeURL?.host ?? "", "BARMASTER_TITLE": activeTitle,
+            ])
+        } else {
+            NSLog("BarMaster: Chrome.json button %@ has no usable action", site.title ?? "")
+        }
+    }
+
+    @objc private func editButtons() {
+        NSWorkspace.shared.open(siteButtons.ensureFile())
+    }
+
+    /// Runs a user command through the login shell, so their PATH applies.
+    private static func runShell(_ command: String, environment: [String: String]) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = ["-lc", command]
+        process.environment = ProcessInfo.processInfo.environment.merging(environment) { $1 }
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do { try process.run() } catch { NSLog("BarMaster: shell button failed: %@", error.localizedDescription) }
     }
 
     /// Chrome's window title follows the active tab, so a title change means

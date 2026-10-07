@@ -21,11 +21,18 @@ class AppBar: NSObject, NSTouchBarDelegate {
     private(set) lazy var touchBar: NSTouchBar = {
         let bar = NSTouchBar()
         bar.delegate = self
-        bar.defaultItemIdentifiers = [.escape, .fixedSpaceSmall] + appItems + [
-            .flexibleSpace, .handBack,
-        ]
+        bar.defaultItemIdentifiers = itemIdentifiers
         return bar
     }()
+
+    private var itemIdentifiers: [NSTouchBarItem.Identifier] {
+        [.escape, .fixedSpaceSmall] + appItems + [.flexibleSpace, .handBack]
+    }
+
+    /// Call after `appItems` changes; the Touch Bar updates in place.
+    func reloadItems() {
+        touchBar.defaultItemIdentifiers = itemIdentifiers
+    }
 
     /// The app-specific items between Esc and the system keys.
     var appItems: [NSTouchBarItem.Identifier] { [] }

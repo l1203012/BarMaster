@@ -22,6 +22,10 @@ final class StatusItem: NSObject, NSMenuDelegate {
         loginItem.target = self
         menu.addItem(loginItem)
         menu.addItem(.separator())
+        let editItem = NSMenuItem(title: "Edit Chrome Buttons…", action: #selector(editChromeButtons), keyEquivalent: "")
+        editItem.target = self
+        menu.addItem(editItem)
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit BarMaster", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         item.menu = menu
     }
@@ -42,6 +46,10 @@ final class StatusItem: NSObject, NSMenuDelegate {
         } catch {
             NSLog("BarMaster: Open at Login failed: %@", error.localizedDescription)
         }
+    }
+
+    @objc private func editChromeButtons() {
+        touchBar.editChromeButtons()
     }
 
     @objc private func toggleEnabled() {
