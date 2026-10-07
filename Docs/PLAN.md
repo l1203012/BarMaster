@@ -221,7 +221,14 @@ come later if needed.
   focused terminal's directory. The directory comes from the window's proxy
   icon over Accessibility. A kqueue watch on `.git/logs/HEAD` updates it after
   commits and checkouts, with no polling.
-- **Brightness and volume** sit behind one popover button to make room.
+- **Claude context on the Ghostty bar.** Shows the token count of the newest
+  Claude Code session for that folder, read from the tail of its transcript in
+  `~/.claude/projects/…`. It is kqueue-watched and throttled to once a second.
+  Sessions idle for more than 12 h are hidden.
+- **No brightness/volume keys** (the popover didn't work in a system-modal
+  bar). The bottle on the right hands the Touch Bar back. The menu bar
+  **Enabled** toggle turns BarMaster off completely: no bar, and no Control
+  Strip bottle.
 - **Install & signing:** `Scripts/build.sh install` puts the app in
   /Applications. `Scripts/make-dev-cert.sh` creates the stable signing
   identity, and the menu has an **Open at Login** toggle.

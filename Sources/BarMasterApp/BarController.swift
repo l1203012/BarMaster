@@ -29,8 +29,15 @@ final class BarController: NSObject {
         return item
     }()
 
-    /// Read from the bar itself rather than tracked, so it can't drift.
-    var isShown: Bool { presented?.touchBar.isVisible ?? false }
+    /// Off from the menu bar: no bar, no Control Strip bottle, app switches ignored.
+    var isEnabled: Bool {
+        get { !UserDefaults.standard.bool(forKey: "disabled") }
+        set {
+            guard newValue != isEnabled else { return }
+            UserDefaults.standard.set(!newValue, forKey: "disabled")
+            newValue ? enable() : disable()
+        }
+    }
 
     func install() {
         guard SystemTouchBar.isAvailable else {
@@ -43,19 +50,31 @@ final class BarController: NSObject {
                 self?.hide()
             }
         }
-        SystemTouchBar.addToControlStrip(trayItem)
         // Asks once; tab tracking, dialogs and key presses all need it.
         KeyPress.ensureTrusted()
-        watcher.start { [weak self] app in self?.frontmostChanged(app) }
+        watcher.start { [weak self] app in
+            guard let self, self.isEnabled else { return }
+            self.frontmostChanged(app)
+        }
+        if isEnabled { SystemTouchBar.addToControlStrip(trayItem) }
     }
 
     func uninstall() {
-        if let presented { SystemTouchBar.dismiss(presented.touchBar) }
-        SystemTouchBar.removeFromControlStrip(trayItem)
+        disable()
     }
 
-    @objc func toggle() {
-        isShown ? hide() : show()
+    private func enable() {
+        SystemTouchBar.addToControlStrip(trayItem)
+        frontmostChanged(NSWorkspace.shared.frontmostApplication)
+    }
+
+    private func disable() {
+        if let presented { SystemTouchBar.dismiss(presented.touchBar) }
+        presented = nil
+        events = nil
+        currentBar?.appElement = nil
+        frontmost = nil
+        SystemTouchBar.removeFromControlStrip(trayItem)
     }
 
     /// Shows the bar for the frontmost app, or the home bar elsewhere.

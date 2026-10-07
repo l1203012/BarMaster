@@ -11,8 +11,7 @@ final class GitStatus {
 
     var onChange: ((Info?) -> Void)?
     private var directory: String?
-    private var watchedLog: String?
-    private var watcher: DispatchSourceFileSystemObject?
+    private let reflog = FileWatcher()
     private let queue = DispatchQueue(label: "io.github.l1203012.barmaster.git", qos: .utility)
     private let throttle = Throttle(delay: 0.3)
 
@@ -46,24 +45,9 @@ final class GitStatus {
     }
 
     private func watch(_ log: String?) {
-        guard log != watchedLog else { return }
-        watcher?.cancel()
-        watcher = nil
-        watchedLog = log
-        guard let log else { return }
-        let fd = open(log, O_EVTONLY)
-        guard fd >= 0 else { return }
-        let source = DispatchSource.makeFileSystemObjectSource(
-            fileDescriptor: fd, eventMask: [.write, .extend, .delete, .rename], queue: .main)
-        source.setEventHandler { [weak self] in
-            guard let self else { return }
-            // A replaced file needs a fresh descriptor.
-            if !source.data.isDisjoint(with: [.delete, .rename]) { self.watch(nil) }
-            self.throttle.schedule { self.reload() }
+        reflog.watch(log) { [weak self] in
+            self?.throttle.schedule { self?.reload() }
         }
-        source.setCancelHandler { close(fd) }
-        source.resume()
-        watcher = source
     }
 
     private static func git(_ arguments: [String], in directory: String) -> [String]? {

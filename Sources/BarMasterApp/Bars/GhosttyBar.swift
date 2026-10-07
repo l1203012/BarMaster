@@ -14,19 +14,15 @@ final class GhosttyBar: AppBar {
     private static let zoomSplit = NSTouchBarItem.Identifier.barMaster("ghostty.zoom-split")
     private static let clear = NSTouchBarItem.Identifier.barMaster("ghostty.clear")
     private static let git = NSTouchBarItem.Identifier.barMaster("ghostty.git")
+    private static let claude = NSTouchBarItem.Identifier.barMaster("ghostty.claude")
 
     private let tabStrip = TabScrubberItem(identifier: GhosttyBar.tabs, width: 200)
     private let gitStatus = GitStatus()
-    private lazy var gitButton: NSButton = {
-        let button = NSButton(title: "", image: NSImage(systemSymbolName: "arrow.triangle.branch",
-                                                         accessibilityDescription: "Git branch") ?? NSImage(),
-                              target: self, action: #selector(reloadGit))
-        button.imagePosition = .imageLeading
-        button.lineBreakMode = .byTruncatingMiddle
-        button.widthAnchor.constraint(lessThanOrEqualToConstant: 190).isActive = true
-        button.isHidden = true
-        return button
-    }()
+    private let claudeSession = ClaudeSession()
+    private lazy var claudeButton = statusButton(symbol: "sparkle", label: "Claude context tokens",
+                                                 action: #selector(reloadClaude))
+    private lazy var gitButton = statusButton(symbol: "arrow.triangle.branch", label: "Git branch",
+                                              action: #selector(reloadGit))
     private let tabThrottle = Throttle(delay: 0.15)
     private let titleThrottle = Throttle(delay: 0.5)
 
@@ -40,13 +36,18 @@ final class GhosttyBar: AppBar {
             self.gitButton.isHidden = info == nil
             if let info { self.gitButton.title = "\(info.branch) · \(info.commits)" }
         }
+        claudeSession.onChange = { [weak self] tokens in
+            guard let self else { return }
+            self.claudeButton.isHidden = tokens == nil
+            if let tokens { self.claudeButton.title = Self.compact(tokens) }
+        }
     }
 
     override var appItems: [NSTouchBarItem.Identifier] {
         [Self.previousTab, Self.tabs, Self.nextTab, .fixedSpaceSmall,
          Self.newTab, Self.closeTab, .fixedSpaceSmall,
          Self.splitRight, Self.splitDown, Self.nextSplit, Self.zoomSplit, Self.clear,
-         .flexibleSpace, Self.git]
+         .flexibleSpace, Self.git, Self.claude]
     }
 
     override func makeAppItem(_ identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
@@ -56,6 +57,11 @@ final class GhosttyBar: AppBar {
             let item = NSCustomTouchBarItem(identifier: identifier)
             item.view = gitButton
             item.customizationLabel = "Git branch and commits"
+            return item
+        case Self.claude:
+            let item = NSCustomTouchBarItem(identifier: identifier)
+            item.view = claudeButton
+            item.customizationLabel = "Claude context tokens"
             return item
         case Self.previousTab: return button(identifier, symbol: "chevron.left", label: "Previous tab", action: #selector(previousTab))
         case Self.nextTab: return button(identifier, symbol: "chevron.right", label: "Next tab", action: #selector(nextTab))
@@ -82,7 +88,7 @@ final class GhosttyBar: AppBar {
             guard let self, let result, result.numberOfItems >= 2 else { return }
             let titles = stride(from: 3, through: result.numberOfItems, by: 1).map { result.atIndex($0)?.stringValue ?? "" }
             self.tabStrip.update(titles: titles, selected: Int(result.atIndex(1)?.int32Value ?? 0) - 1)
-            self.gitStatus.track(directory: result.atIndex(2)?.stringValue)
+            self.track(directory: result.atIndex(2)?.stringValue)
         }
     }
 
@@ -97,14 +103,38 @@ final class GhosttyBar: AppBar {
             titleThrottle.schedule { [weak self] in
                 guard let self, let app = self.appElement,
                       let directory = AX.documentPath(ofFocusedWindowIn: app) else { return }
-                self.gitStatus.track(directory: directory)
+                self.track(directory: directory)
             }
         default:
             break
         }
     }
 
+    private func track(directory: String?) {
+        gitStatus.track(directory: directory)
+        claudeSession.track(directory: directory)
+    }
+
+    /// 178_342 → "178k", 1_204_000 → "1.2M".
+    private static func compact(_ tokens: Int) -> String {
+        if tokens >= 1_000_000 { return String(format: "%.1fM", Double(tokens) / 1_000_000) }
+        if tokens >= 1_000 { return "\(tokens / 1_000)k" }
+        return "\(tokens)"
+    }
+
+    /// A status readout: icon plus text, hidden until there is something to show.
+    private func statusButton(symbol: String, label: String, action: Selector) -> NSButton {
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: label) ?? NSImage()
+        let button = NSButton(title: "", image: image, target: self, action: action)
+        button.imagePosition = .imageLeading
+        button.lineBreakMode = .byTruncatingMiddle
+        button.widthAnchor.constraint(lessThanOrEqualToConstant: 190).isActive = true
+        button.isHidden = true
+        return button
+    }
+
     @objc private func reloadGit() { gitStatus.reload() }
+    @objc private func reloadClaude() { claudeSession.reload() }
     @objc private func previousTab() { perform("previous_tab") }
     @objc private func nextTab() { perform("next_tab") }
     @objc private func closeTab() { perform("close_tab") }

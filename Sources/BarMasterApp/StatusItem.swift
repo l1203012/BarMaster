@@ -5,7 +5,7 @@ import ServiceManagement
 final class StatusItem: NSObject, NSMenuDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let touchBar: BarController
-    private let toggleItem = NSMenuItem(title: "Show on Touch Bar", action: #selector(toggle), keyEquivalent: "")
+    private let enabledItem = NSMenuItem(title: "Enabled", action: #selector(toggleEnabled), keyEquivalent: "")
     private let loginItem = NSMenuItem(title: "Open at Login", action: #selector(toggleOpenAtLogin), keyEquivalent: "")
 
     init(touchBar: BarController) {
@@ -13,11 +13,12 @@ final class StatusItem: NSObject, NSMenuDelegate {
         super.init()
         item.button?.image = Theme.bottleImage()
         item.button?.toolTip = "BarMaster"
+        item.button?.appearsDisabled = !touchBar.isEnabled
 
         let menu = NSMenu()
         menu.delegate = self
-        toggleItem.target = self
-        menu.addItem(toggleItem)
+        enabledItem.target = self
+        menu.addItem(enabledItem)
         loginItem.target = self
         menu.addItem(loginItem)
         menu.addItem(.separator())
@@ -26,8 +27,8 @@ final class StatusItem: NSObject, NSMenuDelegate {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        toggleItem.state = touchBar.isShown ? .on : .off
-        toggleItem.isEnabled = SystemTouchBar.isAvailable
+        enabledItem.state = touchBar.isEnabled ? .on : .off
+        enabledItem.isEnabled = SystemTouchBar.isAvailable
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
     }
 
@@ -43,7 +44,8 @@ final class StatusItem: NSObject, NSMenuDelegate {
         }
     }
 
-    @objc private func toggle() {
-        touchBar.toggle()
+    @objc private func toggleEnabled() {
+        touchBar.isEnabled.toggle()
+        item.button?.appearsDisabled = !touchBar.isEnabled
     }
 }

@@ -6,18 +6,11 @@ extension NSTouchBarItem.Identifier {
     }
 
     static let escape = barMaster("escape")
-    static let brightnessDown = barMaster("brightness-down")
-    static let brightnessUp = barMaster("brightness-up")
-    static let volumeDown = barMaster("volume-down")
-    static let volumeUp = barMaster("volume-up")
-    static let mute = barMaster("mute")
     static let handBack = barMaster("hand-back")
-    static let systemControls = barMaster("system-controls")
 }
 
-/// One full-width Touch Bar layout: Esc, the app's own items, then the
-/// brightness/volume keys the Control Strip would normally provide and a
-/// bottle that hands the Touch Bar back. Subclasses supply the middle part.
+/// One full-width Touch Bar layout: Esc, the app's own items, then a bottle
+/// that hands the Touch Bar back. Subclasses supply the middle part.
 /// Built once and reused; `refresh()` runs each time the bar is presented.
 class AppBar: NSObject, NSTouchBarDelegate {
     /// Set by BarController: collapse the bar back into the Control Strip.
@@ -29,7 +22,7 @@ class AppBar: NSObject, NSTouchBarDelegate {
         let bar = NSTouchBar()
         bar.delegate = self
         bar.defaultItemIdentifiers = [.escape, .fixedSpaceSmall] + appItems + [
-            .flexibleSpace, .systemControls, .handBack,
+            .flexibleSpace, .handBack,
         ]
         return bar
     }()
@@ -52,12 +45,6 @@ class AppBar: NSObject, NSTouchBarDelegate {
             let item = button(identifier, title: "esc", action: #selector(escape))
             item.view.widthAnchor.constraint(equalToConstant: 56).isActive = true
             return item
-        case .brightnessDown: return compact(identifier, "sun.min", "Brightness down", #selector(brightnessDown))
-        case .brightnessUp: return compact(identifier, "sun.max", "Brightness up", #selector(brightnessUp))
-        case .volumeDown: return compact(identifier, "speaker.wave.1", "Volume down", #selector(volumeDown))
-        case .volumeUp: return compact(identifier, "speaker.wave.3", "Volume up", #selector(volumeUp))
-        case .mute: return compact(identifier, "speaker.slash", "Mute", #selector(mute))
-        case .systemControls: return systemControls()
         case .handBack:
             let item = NSCustomTouchBarItem(identifier: identifier)
             item.view = NSButton(image: Theme.bottleImage(), target: self, action: #selector(handBack))
@@ -91,36 +78,7 @@ class AppBar: NSObject, NSTouchBarDelegate {
         return item
     }
 
-    /// Brightness and volume behind one button, to leave room for the app's own items.
-    private func systemControls() -> NSTouchBarItem {
-        let item = NSPopoverTouchBarItem(identifier: .systemControls)
-        item.collapsedRepresentationImage = NSImage(systemSymbolName: "slider.horizontal.3",
-                                                    accessibilityDescription: "Brightness and volume")
-        item.customizationLabel = "Brightness and volume"
-        item.collapsedRepresentation.widthAnchor.constraint(equalToConstant: 40).isActive = true
-        let popover = NSTouchBar()
-        popover.delegate = self
-        popover.defaultItemIdentifiers = [
-            .brightnessDown, .brightnessUp, .fixedSpaceLarge, .volumeDown, .volumeUp, .mute,
-        ]
-        item.popoverTouchBar = popover
-        return item
-    }
-
-    private func compact(_ identifier: NSTouchBarItem.Identifier, _ symbol: String, _ label: String,
-                         _ action: Selector) -> NSCustomTouchBarItem {
-        let item = button(identifier, symbol: symbol, label: label, action: action)
-        item.view.constraints.forEach { $0.isActive = false }
-        item.view.widthAnchor.constraint(equalToConstant: 56).isActive = true
-        return item
-    }
-
     @objc private func escape() { KeyPress.escape() }
-    @objc private func brightnessDown() { KeyPress.post(.brightnessDown) }
-    @objc private func brightnessUp() { KeyPress.post(.brightnessUp) }
-    @objc private func volumeDown() { KeyPress.post(.volumeDown) }
-    @objc private func volumeUp() { KeyPress.post(.volumeUp) }
-    @objc private func mute() { KeyPress.post(.mute) }
     @objc private func handBack() { onHandBack?() }
 }
 
