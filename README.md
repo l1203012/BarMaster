@@ -73,8 +73,9 @@ back.
 
 ### Everywhere
 - **Esc** on every bar, since Touch Bar MacBooks have no physical Esc key.
-- **Dialogs get through.** When an app asks something like "Close this tab?",
-  BarMaster steps aside so you can tap the dialog's buttons, then comes back.
+- **Dialogs get through.** When an app asks something, like Ghostty's "Close
+  this tab?" or a Chrome "This page says…" or permission prompt, BarMaster
+  steps aside so you can tap the dialog's buttons, then comes back.
 - A bottle button hands the Touch Bar back to the app; the bottle in the
   Control Strip brings BarMaster back.
 - Menu bar: **Enabled** (turn BarMaster off completely), **Open at Login**,

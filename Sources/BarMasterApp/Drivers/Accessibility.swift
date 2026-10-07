@@ -18,12 +18,23 @@ enum AX {
         value(element, attribute) as? String
     }
 
-    /// The sheet or dialog blocking `app`'s focused window, if any.
+    /// The sheet or dialog blocking `app`'s focused window, if any. Covers:
+    /// - a sheet that has taken focus itself (Ghostty's "Close tab?"),
+    /// - a sheet attached to the focused window,
+    /// - a standard dialog window,
+    /// - Chrome's dialogs ("This page says…", permission prompts): a separate
+    ///   focused window with no subrole (`AXUnknown`) that isn't the main window.
     static func blockingDialog(in app: AXUIElement) -> AXUIElement? {
         guard let window = element(app, kAXFocusedWindowAttribute) else { return nil }
+        if string(window, kAXRoleAttribute) == kAXSheetRole { return window }
         let subrole = string(window, kAXSubroleAttribute)
         if subrole == kAXDialogSubrole || subrole == kAXSystemDialogSubrole { return window }
+        if subrole == kAXUnknownSubrole, bool(window, kAXMainAttribute) == false { return window }
         return elements(window, kAXChildrenAttribute).first { string($0, kAXRoleAttribute) == kAXSheetRole }
+    }
+
+    static func bool(_ element: AXUIElement, _ attribute: String) -> Bool? {
+        (value(element, attribute) as? NSNumber)?.boolValue
     }
 
     /// The directory a terminal window shows as its title-bar proxy icon.
