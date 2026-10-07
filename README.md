@@ -42,8 +42,6 @@ back.
   <sub><b>Slack</b>: channel switcher, shortcuts and a live mention</sub>
 </p>
 
-<p align="center"><sub>Illustrations with made-up tabs and channels.</sub></p>
-
 ## Features
 
 ### Ghostty
