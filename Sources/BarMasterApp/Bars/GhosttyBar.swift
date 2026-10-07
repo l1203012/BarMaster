@@ -13,25 +13,50 @@ final class GhosttyBar: AppBar {
     private static let nextSplit = NSTouchBarItem.Identifier.barMaster("ghostty.next-split")
     private static let zoomSplit = NSTouchBarItem.Identifier.barMaster("ghostty.zoom-split")
     private static let clear = NSTouchBarItem.Identifier.barMaster("ghostty.clear")
+    private static let git = NSTouchBarItem.Identifier.barMaster("ghostty.git")
 
-    private let tabStrip = TabScrubberItem(identifier: GhosttyBar.tabs)
+    private let tabStrip = TabScrubberItem(identifier: GhosttyBar.tabs, width: 200)
+    private let gitStatus = GitStatus()
+    private lazy var gitButton: NSButton = {
+        let button = NSButton(title: "", image: NSImage(systemSymbolName: "arrow.triangle.branch",
+                                                         accessibilityDescription: "Git branch") ?? NSImage(),
+                              target: self, action: #selector(reloadGit))
+        button.imagePosition = .imageLeading
+        button.lineBreakMode = .byTruncatingMiddle
+        button.widthAnchor.constraint(lessThanOrEqualToConstant: 190).isActive = true
+        button.isHidden = true
+        return button
+    }()
+    private let tabThrottle = Throttle(delay: 0.15)
+    private let titleThrottle = Throttle(delay: 0.5)
 
     override init() {
         super.init()
         tabStrip.onSelect = { [weak self] index in
             self?.run("select tab (tab \(index + 1) of front window)", cache: false)
         }
+        gitStatus.onChange = { [weak self] info in
+            guard let self else { return }
+            self.gitButton.isHidden = info == nil
+            if let info { self.gitButton.title = "\(info.branch) · \(info.commits)" }
+        }
     }
 
     override var appItems: [NSTouchBarItem.Identifier] {
         [Self.previousTab, Self.tabs, Self.nextTab, .fixedSpaceSmall,
          Self.newTab, Self.closeTab, .fixedSpaceSmall,
-         Self.splitRight, Self.splitDown, Self.nextSplit, Self.zoomSplit, Self.clear]
+         Self.splitRight, Self.splitDown, Self.nextSplit, Self.zoomSplit, Self.clear,
+         .flexibleSpace, Self.git]
     }
 
     override func makeAppItem(_ identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
         switch identifier {
         case Self.tabs: return tabStrip
+        case Self.git:
+            let item = NSCustomTouchBarItem(identifier: identifier)
+            item.view = gitButton
+            item.customizationLabel = "Git branch and commits"
+            return item
         case Self.previousTab: return button(identifier, symbol: "chevron.left", label: "Previous tab", action: #selector(previousTab))
         case Self.nextTab: return button(identifier, symbol: "chevron.right", label: "Next tab", action: #selector(nextTab))
         case Self.closeTab: return button(identifier, symbol: "xmark", label: "Close tab", action: #selector(closeTab))
@@ -45,18 +70,41 @@ final class GhosttyBar: AppBar {
         }
     }
 
+    /// Reads the selected tab, the focused terminal's directory and every tab name in one round trip.
     override func refresh() {
         AppleScript.run("""
             tell application "Ghostty"
                 if (count of windows) is 0 then return {}
-                return {index of selected tab of front window} & (name of every tab of front window)
+                set selectedTab to selected tab of front window
+                return {index of selectedTab, working directory of focused terminal of selectedTab} & (name of every tab of front window)
             end tell
             """) { [weak self] result in
-            guard let (selected, titles) = AppleScript.tabList(result) else { return }
-            self?.tabStrip.update(titles: titles, selected: selected)
+            guard let self, let result, result.numberOfItems >= 2 else { return }
+            let titles = stride(from: 3, through: result.numberOfItems, by: 1).map { result.atIndex($0)?.stringValue ?? "" }
+            self.tabStrip.update(titles: titles, selected: Int(result.atIndex(1)?.int32Value ?? 0) - 1)
+            self.gitStatus.track(directory: result.atIndex(2)?.stringValue)
         }
     }
 
+    /// Each Ghostty tab is its own window, so switching tabs moves window focus.
+    /// Titles change constantly (shell prompts, spinners), so a title change only
+    /// re-reads the directory over Accessibility, which is cheap; no AppleScript.
+    override func appEvent(_ name: String) {
+        switch name {
+        case kAXFocusedWindowChangedNotification, kAXMainWindowChangedNotification, kAXWindowCreatedNotification:
+            tabThrottle.schedule { [weak self] in self?.refresh() }
+        case kAXTitleChangedNotification:
+            titleThrottle.schedule { [weak self] in
+                guard let self, let app = self.appElement,
+                      let directory = AX.documentPath(ofFocusedWindowIn: app) else { return }
+                self.gitStatus.track(directory: directory)
+            }
+        default:
+            break
+        }
+    }
+
+    @objc private func reloadGit() { gitStatus.reload() }
     @objc private func previousTab() { perform("previous_tab") }
     @objc private func nextTab() { perform("next_tab") }
     @objc private func closeTab() { perform("close_tab") }

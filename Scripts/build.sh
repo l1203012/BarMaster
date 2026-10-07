@@ -5,11 +5,13 @@
 #   Scripts/build.sh              build every module and the executable
 #   Scripts/build.sh app          build .build/BarMaster.app
 #   Scripts/build.sh run          build the app, quit any running copy, open it
+#   Scripts/build.sh install      optimised build into /Applications, then open it
 #
 #   CONFIG=release   optimised build (default: debug)
 #   ARCHS="arm64 x86_64"   architectures (default: this Mac; release: both)
-#   SIGN_IDENTITY="BarMaster Dev"   (default: ad-hoc "-"; ad-hoc re-prompts
-#                                    for Accessibility/Automation after every build)
+#   SIGN_IDENTITY=…   default: "BarMaster Dev" when Scripts/make-dev-cert.sh has
+#                     created it, else ad-hoc "-". Ad-hoc builds get a new identity
+#                     every time, so macOS asks for Accessibility/Automation again.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -105,7 +107,12 @@ bundle() {
     local build_number
     build_number=$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 1)
     plutil -replace CFBundleVersion -string "$build_number" "$APP/Contents/Info.plist"
-    local identity=${SIGN_IDENTITY:--}
+    local identity=${SIGN_IDENTITY:-}
+    if [ -z "$identity" ]; then
+        identity=-
+        security find-identity -v -p codesigning | grep -q '"BarMaster Dev"' && identity="BarMaster Dev"
+    fi
+    [ "$identity" = - ] && echo "! ad-hoc signed: permissions reset on every build (run Scripts/make-dev-cert.sh once)"
     codesign --force --sign "$identity" "$APP"
     echo "✓ $APP"
 }
@@ -118,6 +125,14 @@ case "${1:-all}" in
         bundle
         pkill -x BarMaster 2>/dev/null || true
         open "$APP"
+        ;;
+    install)
+        CONFIG=release ARCHS=$(uname -m) "$0" app
+        pkill -x BarMaster 2>/dev/null || true
+        rm -rf /Applications/BarMaster.app
+        ditto "$APP" /Applications/BarMaster.app
+        open /Applications/BarMaster.app
+        echo "✓ installed /Applications/BarMaster.app"
         ;;
     *) build "$@" ;;
 esac

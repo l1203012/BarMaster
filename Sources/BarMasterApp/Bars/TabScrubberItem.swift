@@ -8,7 +8,7 @@ final class TabScrubberItem: NSCustomTouchBarItem, NSScrubberDataSource, NSScrub
     /// Called with the 0-based index of the tapped tab.
     var onSelect: ((Int) -> Void)?
 
-    override init(identifier: NSTouchBarItem.Identifier) {
+    init(identifier: NSTouchBarItem.Identifier, width: CGFloat = 230) {
         super.init(identifier: identifier)
         scrubber.register(NSScrubberTextItemView.self, forItemIdentifier: Self.itemID)
         scrubber.mode = .free
@@ -19,7 +19,7 @@ final class TabScrubberItem: NSCustomTouchBarItem, NSScrubberDataSource, NSScrub
         scrubber.scrubberLayout = layout
         scrubber.dataSource = self
         scrubber.delegate = self
-        scrubber.widthAnchor.constraint(equalToConstant: 230).isActive = true
+        scrubber.widthAnchor.constraint(equalToConstant: width).isActive = true
         view = scrubber
         customizationLabel = "Tabs"
     }

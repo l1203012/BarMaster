@@ -14,6 +14,7 @@ final class ChromeBar: AppBar {
     private static let reload = NSTouchBarItem.Identifier.barMaster("chrome.reload")
 
     private let tabStrip = TabScrubberItem(identifier: ChromeBar.tabs)
+    private let throttle = Throttle(delay: 0.25)
 
     override init() {
         super.init()
@@ -53,6 +54,13 @@ final class ChromeBar: AppBar {
             guard let (selected, titles) = AppleScript.tabList(result) else { return }
             self?.tabStrip.update(titles: titles, selected: selected)
         }
+    }
+
+    /// Chrome's window title follows the active tab, so a title change means
+    /// the tab changed (or its page did); either way the strip is re-read.
+    override func appEvent(_ name: String) {
+        guard name == kAXTitleChangedNotification || name == kAXFocusedWindowChangedNotification else { return }
+        throttle.schedule { [weak self] in self?.refresh() }
     }
 
     @objc private func previousTab() {

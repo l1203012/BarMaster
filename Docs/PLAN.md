@@ -208,6 +208,24 @@ come later if needed.
 9. **Polish:** stable signing, DMG, README, resource check
    (`footprint`, Instruments idle trace).
 
+## 7b. Added along the way
+
+- **Dialogs get through.** An Accessibility observer on the frontmost app
+  notices sheets and dialogs (e.g. Ghostty's "Close tab?"). BarMaster steps
+  aside so the dialog's own Touch Bar buttons can be tapped, then comes back
+  when the dialog closes.
+- **Live tab strip.** Tab switches made outside BarMaster update the strip.
+  Chrome's window title follows the active tab; each Ghostty tab is its own
+  window, so a focus change marks a Ghostty switch. Both are event-driven.
+- **Git status on the Ghostty bar.** Shows `branch · commit count` for the
+  focused terminal's directory. The directory comes from the window's proxy
+  icon over Accessibility. A kqueue watch on `.git/logs/HEAD` updates it after
+  commits and checkouts, with no polling.
+- **Brightness and volume** sit behind one popover button to make room.
+- **Install & signing:** `Scripts/build.sh install` puts the app in
+  /Applications. `Scripts/make-dev-cert.sh` creates the stable signing
+  identity, and the menu has an **Open at Login** toggle.
+
 ## 8. Risks
 
 - **Private API breakage.** DFRFoundation has been stable since 10.14, and

@@ -12,6 +12,7 @@ extension NSTouchBarItem.Identifier {
     static let volumeUp = barMaster("volume-up")
     static let mute = barMaster("mute")
     static let handBack = barMaster("hand-back")
+    static let systemControls = barMaster("system-controls")
 }
 
 /// One full-width Touch Bar layout: Esc, the app's own items, then the
@@ -21,12 +22,14 @@ extension NSTouchBarItem.Identifier {
 class AppBar: NSObject, NSTouchBarDelegate {
     /// Set by BarController: collapse the bar back into the Control Strip.
     var onHandBack: (() -> Void)?
+    /// The app's accessibility element while it is frontmost (nil without the permission).
+    var appElement: AXUIElement?
 
     private(set) lazy var touchBar: NSTouchBar = {
         let bar = NSTouchBar()
         bar.delegate = self
         bar.defaultItemIdentifiers = [.escape, .fixedSpaceSmall] + appItems + [
-            .flexibleSpace, .brightnessDown, .brightnessUp, .volumeDown, .volumeUp, .mute, .handBack,
+            .flexibleSpace, .systemControls, .handBack,
         ]
         return bar
     }()
@@ -38,6 +41,9 @@ class AppBar: NSObject, NSTouchBarDelegate {
 
     /// Re-reads app state (e.g. tab titles). Called on present; never on a timer.
     func refresh() {}
+
+    /// An accessibility notification (`kAX…Notification`) from the app while it is frontmost.
+    func appEvent(_ name: String) {}
 
     final func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
         switch identifier {
@@ -51,6 +57,7 @@ class AppBar: NSObject, NSTouchBarDelegate {
         case .volumeDown: return compact(identifier, "speaker.wave.1", "Volume down", #selector(volumeDown))
         case .volumeUp: return compact(identifier, "speaker.wave.3", "Volume up", #selector(volumeUp))
         case .mute: return compact(identifier, "speaker.slash", "Mute", #selector(mute))
+        case .systemControls: return systemControls()
         case .handBack:
             let item = NSCustomTouchBarItem(identifier: identifier)
             item.view = NSButton(image: Theme.bottleImage(), target: self, action: #selector(handBack))
@@ -84,11 +91,27 @@ class AppBar: NSObject, NSTouchBarDelegate {
         return item
     }
 
+    /// Brightness and volume behind one button, to leave room for the app's own items.
+    private func systemControls() -> NSTouchBarItem {
+        let item = NSPopoverTouchBarItem(identifier: .systemControls)
+        item.collapsedRepresentationImage = NSImage(systemSymbolName: "slider.horizontal.3",
+                                                    accessibilityDescription: "Brightness and volume")
+        item.customizationLabel = "Brightness and volume"
+        item.collapsedRepresentation.widthAnchor.constraint(equalToConstant: 40).isActive = true
+        let popover = NSTouchBar()
+        popover.delegate = self
+        popover.defaultItemIdentifiers = [
+            .brightnessDown, .brightnessUp, .fixedSpaceLarge, .volumeDown, .volumeUp, .mute,
+        ]
+        item.popoverTouchBar = popover
+        return item
+    }
+
     private func compact(_ identifier: NSTouchBarItem.Identifier, _ symbol: String, _ label: String,
                          _ action: Selector) -> NSCustomTouchBarItem {
         let item = button(identifier, symbol: symbol, label: label, action: action)
         item.view.constraints.forEach { $0.isActive = false }
-        item.view.widthAnchor.constraint(equalToConstant: 34).isActive = true
+        item.view.widthAnchor.constraint(equalToConstant: 56).isActive = true
         return item
     }
 
